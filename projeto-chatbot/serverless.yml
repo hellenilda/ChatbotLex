@@ -1,0 +1,82 @@
+org: compasspb
+app: telegram-chatbot
+service: pollybot
+
+plugins:
+  - serverless-python-requirements
+
+provider:
+  name: aws
+  runtime: python3.10
+  region: us-east-1
+  stage: dev
+  environment:
+    TELEGRAM_TOKEN: ${env:TELEGRAM_TOKEN}
+    # BUCKET_NAME: ${env:BUCKET_NAME} # Comentar após a criação do bucket
+    BOT_ID: ${env:BOT_ID}
+    BOT_ALIAS_ID: ${env:BOT_ALIAS_ID}
+    LOCALE_ID: ${env:LOCALE_ID}
+    DYNAMODB_TABLE: ${env:DYNAMODB_TABLE}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - lex:RecognizeText
+      Resource:
+        - arn:aws:lex:${self:provider.region}:${aws:accountId}:bot-alias/${env:BOT_ID}/${env:BOT_ALIAS_ID}
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction # Permite que o API Gateway invoque a função telegramWebhook
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-telegramWebhook
+    - Effect: Allow
+      Action:
+        - s3:PutObject  # Permissões para acessar o bucket
+        - s3:GetObject
+      Resource:
+        - arn:aws:s3:::${env:BUCKET_NAME}/*
+
+functions:
+  telegramWebhook:
+    handler: handlers/telegramWebhook.telegramWebhook
+    events:
+      - http:
+          path: webhook
+          method: post
+
+  processImage:
+    handler: handlers/processImage.processImage
+    events:
+      - s3:
+          bucket: ${env:BUCKET_NAME}
+          event: s3:ObjectCreated:*
+
+  lexBackend:
+    handler: handlers/lexBackend.lexBackend
+    events:
+      - http:
+          path: lex-backend
+          method: post
+
+resources:
+  Resources:
+    # Em caso de erros, comentar as linhas do Bucket após sua criação
+    # TelegramChatbotBucket:
+    #   Type: AWS::S3::Bucket
+    #   Properties:
+    #     BucketName: ${env:BUCKET_NAME}
+    #     NotificationConfiguration:
+    #       LambdaConfigurations:
+    #         - Event: s3:ObjectCreated:*
+    #           Function: { "Fn::GetAtt": ["ProcessImageLambdaFunction", "Arn"] }
+
+    DynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
