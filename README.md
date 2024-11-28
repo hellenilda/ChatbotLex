@@ -38,9 +38,9 @@
 
 6. Crie um arquivo `.env` seguindo o modelo do `.env.example`.
     - Onde encontrar o BOT_ID:
-    ![bot-id](./assets/bot%20id.png)
+    ![bot-id](./assets/bot-id.png)
     - Onde encontrar o BOT_ALIAS_ID:
-    ![alias-id](./assets/alias%20id.png)
+    ![alias-id](./assets/alias-id.png)
 
 7. Dentro do diretório do arquivo `serverless.yml`, execute o comando `sls deploy`.
 
