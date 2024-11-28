@@ -12,7 +12,7 @@ provider:
   stage: dev
   environment:
     TELEGRAM_TOKEN: ${env:TELEGRAM_TOKEN}
-    # BUCKET_NAME: ${env:BUCKET_NAME} # Comentar após a criação do bucket
+    BUCKET_NAME: ${env:BUCKET_NAME} # Comentar após a criação do bucket
     BOT_ID: ${env:BOT_ID}
     BOT_ALIAS_ID: ${env:BOT_ALIAS_ID}
     LOCALE_ID: ${env:LOCALE_ID}
@@ -60,14 +60,14 @@ functions:
 resources:
   Resources:
     # Em caso de erros, comentar as linhas do Bucket após sua criação
-    # TelegramChatbotBucket:
-    #   Type: AWS::S3::Bucket
-    #   Properties:
-    #     BucketName: ${env:BUCKET_NAME}
-    #     NotificationConfiguration:
-    #       LambdaConfigurations:
-    #         - Event: s3:ObjectCreated:*
-    #           Function: { "Fn::GetAtt": ["ProcessImageLambdaFunction", "Arn"] }
+    TelegramChatbotBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${env:BUCKET_NAME}
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: { "Fn::GetAtt": ["ProcessImageLambdaFunction", "Arn"] }
 
     DynamoDBTable:
       Type: AWS::DynamoDB::Table
