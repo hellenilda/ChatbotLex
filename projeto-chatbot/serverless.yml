@@ -1,0 +1,103 @@
+org: compasspb
+app: telegram-chatbot
+service: pollybot
+
+plugins:
+  - serverless-python-requirements
+
+provider:
+  name: aws
+  runtime: python3.10
+  region: us-east-1
+  stage: dev
+  environment:
+    TELEGRAM_TOKEN: ${env:TELEGRAM_TOKEN}
+    # BUCKET_NAME: ${env:BUCKET_NAME} # Comentar após a criação do bucket
+    BOT_ID: ${env:BOT_ID}
+    BOT_ALIAS_ID: ${env:BOT_ALIAS_ID}
+    LOCALE_ID: ${env:LOCALE_ID}
+    DYNAMODB_TABLE: ${env:DYNAMODB_TABLE}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - lex:RecognizeText
+      Resource:
+        - arn:aws:lex:${self:provider.region}:${aws:accountId}:bot-alias/${env:BOT_ID}/${env:BOT_ALIAS_ID}
+    - Effect: Allow
+      Action:
+        - lambda:InvokeFunction # Permite que o API Gateway invoque a função telegramWebhook
+      Resource:
+        - arn:aws:lambda:${self:provider.region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-telegramWebhook
+    - Effect: Allow
+      Action:
+        - s3:PutObject  # Permissões para acessar o bucket
+        - s3:GetObject
+      Resource:
+        - arn:aws:s3:::${env:BUCKET_NAME}/*
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${env:DYNAMODB_TABLE}
+
+functions:
+  webhook:
+    handler: handlers.webhook_handler.webhook_handler
+    events:
+      - http:
+          path: webhook
+          method: post
+          cors: true
+
+  lex-backend:
+    handler: handlers.lex_backend.process_message
+    events:
+      - http:
+          path: lex-backend
+          method: post
+      - s3:
+          bucket: ${env:BUCKET_NAME}
+          event: s3:ObjectCreated:*
+
+  # lex-backend:
+  #   handler: handlers.lex_backend.lex_backend
+  #   events:
+  #     - http:
+  #         path: lex-backend
+  #         method: post
+
+resources:
+  Resources:
+    # Em caso de erros, comentar as linhas do Bucket após sua criação
+    # TelegramChatbotBucket:
+    #   Type: AWS::S3::Bucket
+    #   Properties:
+    #     BucketName: ${env:BUCKET_NAME}
+    #     NotificationConfiguration:
+    #       LambdaConfigurations:
+    #         - Event: s3:ObjectCreated:*
+    #           Function: { "Fn::GetAtt": ["ProcessImageLambdaFunction", "Arn"] }
+
+    DynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+package:
+  exclude:
+    - node_modules/**
+    - .git/**
+    - .env
+    - .env.example
+    - package-lock.json
+    - .gitignore
+    - README.md
